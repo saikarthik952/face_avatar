@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "875396544719",
+    "firebase_url": "https://faceavatar-b3ac5.firebaseio.com",
+    "project_id": "faceavatar-b3ac5",
+    "storage_bucket": "faceavatar-b3ac5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875396544719:android:f791e49f0607923c",
+        "android_client_info": {
+          "package_name": "ml.avatar.face.karthik.face_avatar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "875396544719-i603da2dhou0ufcjlvam3nojh76l9ff0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFPMn6pnExZxY3eeJDKtNMDtjwZdrQURo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "875396544719-i603da2dhou0ufcjlvam3nojh76l9ff0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
