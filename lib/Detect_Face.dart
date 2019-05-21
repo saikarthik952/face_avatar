@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:math';
-
+import 'package:path_provider/path_provider.dart';
 import 'package:avataaar_image/avataaar_image.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class Detect_Face extends StatefulWidget {
   String gender;
@@ -19,6 +20,7 @@ class _Detect_FaceState extends State<Detect_Face> {
 
   bool smile = false, wink = false, sad = false;
   bool cap = false,
+      noglass = false,
       glasses = false,
       sunglasses = false,
       beard = false,
@@ -28,7 +30,7 @@ class _Detect_FaceState extends State<Detect_Face> {
   bool load = false;
   Avataaar avatar;
   bool normal = false;
-  double glass, sun;
+  double glass = 0.0, sun = 0.0;
   @override
   void initState() {
     // TODO: implement initState
@@ -45,8 +47,8 @@ class _Detect_FaceState extends State<Detect_Face> {
   final FaceDetector faceDetector = FirebaseVision.instance.faceDetector(
       FaceDetectorOptions(
           enableClassification: true, mode: FaceDetectorMode.accurate));
-//  final ImageLabeler labeler = FirebaseVision.instance
-  //   .imageLabeler(ImageLabelerOptions(confidenceThreshold: 0.7));
+  final ImageLabeler labeler = FirebaseVision.instance
+      .imageLabeler(ImageLabelerOptions(confidenceThreshold: 0.7));
   File _image;
   Future getImage() async {
     smile = false;
@@ -61,7 +63,10 @@ class _Detect_FaceState extends State<Detect_Face> {
     noface = false;
     sunglasses = false;
     // load = false;
-    //noface = false;
+    noface = false;
+    glass = 0.0;
+    sun = 0.0;
+    noglass = false;
     var image = await ImagePicker.pickImage(source: ImageSource.camera);
 
     setState(() {
@@ -70,7 +75,7 @@ class _Detect_FaceState extends State<Detect_Face> {
     final FirebaseVisionImage visionImage =
         FirebaseVisionImage.fromFile(_image);
     final List<Face> faces = await faceDetector.processImage(visionImage);
-    //final List<ImageLabel> labels = await labeler.processImage(visionImage);
+    final List<ImageLabel> labels = await labeler.processImage(visionImage);
     print(faces.length);
     if (faces.length == 0 || faces.length > 1) {
       print("No Faces Detected");
@@ -104,7 +109,7 @@ class _Detect_FaceState extends State<Detect_Face> {
           }
         }
       }
-      /* for (ImageLabel label in labels) {
+      for (ImageLabel label in labels) {
         final String text = label.text;
         final String entityId = label.entityId;
         final double confidence = label.confidence;
@@ -127,7 +132,8 @@ class _Detect_FaceState extends State<Detect_Face> {
         if (text == "Hat" || text == "Cap") {
           cap = true;
         }
-      } 8*/
+      }
+      if (sun == 0.0 && glass == 0.0) noglass = true;
     }
     startprocessing();
   }
@@ -166,11 +172,76 @@ class _Detect_FaceState extends State<Detect_Face> {
         avatar = new Avataaar(top: Top.longHairStraight2());
       }
     }
+    bool sunx = false;
+    if (!noglass) {
+      if (sun < glass) {
+        sunx = false;
+      } else if (sun > glass) {
+        sunx = true;
+      }
+    }
+    if (beard) {
+      if (gender == "male") {
+        if (cap)
+          avatar.top = Top.hat(
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+        if (sunx && cap && !noglass) {
+          avatar.top = Top.hat(
+              accessoriesType: AccessoriesType.Sunglasses,
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+        }
+        if (!sunx && cap && !noglass) {
+          avatar.top = Top.hat(
+              accessoriesType: AccessoriesType.Sunglasses,
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+        } else if (sunx && !noglass) {
+          avatar.top = Top.shortHairShortWaved(
+              accessoriesType: AccessoriesType.Sunglasses,
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+        } else if (!sunx && !noglass) {
+          avatar.top = Top.shortHairShortWaved(
+              accessoriesType: AccessoriesType.Prescription02,
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+        } else
+          avatar.top = Top.shortHairShortRound(
+              facialHair: FacialHair.beardLight(
+                  facialHairColor: FacialHairColor.Black));
+      }
+    } else if (moustache) {
+      if (gender == "male") {
+        avatar.top = Top.shortHairShortRound(
+            facialHair: FacialHair.moustacheFancy(
+                facialHairColor: FacialHairColor.Black));
+      } else {
+        if (gender == "male") {
+          avatar = new Avataaar(top: Top.shortHairShortWaved());
+        } else {
+          avatar = new Avataaar(top: Top.longHairStraight2());
+        }
+      }
+    }
 
     setState(() {
       load = true;
       avatar;
     });
+  }
+
+  getdown() async {
+    Map<PermissionGroup, PermissionStatus> permissions =
+        await PermissionHandler().requestPermissions([PermissionGroup.storage]);
+
+    AvataaarsApi a = new AvataaarsApi();
+    String directory = await (await getExternalStorageDirectory()).path;
+    String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    File f = await File('$directory/DCIM/$timestamp.png').create();
+    f.writeAsBytes(await a.getImage(avatar, 240.0));
+    print(f.path + "rey");
   }
 
   @override
@@ -223,16 +294,65 @@ class _Detect_FaceState extends State<Detect_Face> {
                       ),
                     ),
                   ),
+                  noface == false
+                      ? new Container(
+                          margin: EdgeInsets.all(10.0),
+                          child: new RaisedButton(
+                            color: Colors.indigoAccent[200],
+                            padding: EdgeInsets.all(10.0),
+                            splashColor: Colors.tealAccent,
+                            onPressed: () {
+                              //Navigator.pushNamed(context, '/face');
+                            },
+                            child: Container(
+                              margin: EdgeInsets.only(top: 15.0),
+                              child: new Text(
+                                "CUSTOMIZE MORE",
+                                style: new TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: "little",
+                                    fontSize: 48.0),
+                              ),
+                            ),
+                          ),
+                        )
+                      : new Container(),
+                  noface == false
+                      ? new Container(
+                          margin: EdgeInsets.all(10.0),
+                          child: new RaisedButton(
+                            color: Colors.indigoAccent[200],
+                            padding: EdgeInsets.all(10.0),
+                            splashColor: Colors.tealAccent,
+                            onPressed: () {
+                              //Navigator.pushNamed(context, '/face');
+
+                              getdown();
+                            },
+                            child: Container(
+                              margin: EdgeInsets.only(top: 15.0),
+                              child: new Text(
+                                "DOWNLOAD",
+                                style: new TextStyle(
+                                    color: Colors.white,
+                                    fontFamily: "little",
+                                    fontSize: 48.0),
+                              ),
+                            ),
+                          ),
+                        )
+                      : new Container(),
                   noface == true
                       ? Center(
                           child: Container(
                             margin: EdgeInsets.only(top: 50.0),
                             child: new Text(
-                              "Please Try Again ! Therre was an Error detecting your Face",
+                              "Please Try Again ! There was an Error detecting your Face",
                               style: new TextStyle(
                                   color: Colors.black,
-                                  fontSize: 48,
+                                  fontSize: 36,
                                   fontFamily: "little"),
+                              textAlign: TextAlign.center,
                             ),
                           ),
                         )
